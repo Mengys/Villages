@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using Unity.Netcode;
 using UnityEngine;
@@ -13,16 +11,22 @@ public class Squad : NetworkBehaviour
     private Team _team;
     private float _speed = 1f;
 
+    private TextMeshPro _textMeshPro;
+    private SpriteRenderer _spriteRenderer;
+
     public int Counter { get; private set; }
 
-    private void Update() {
-        if (!IsServer) return;
-        MoveToTarget();
+    public Team GetTeam() {
+        return _team;
     }
 
     [ClientRpc]
-    private void SetCounterTextClientRpc(int counter) {
-        _counterText.GetComponent<TextMeshPro>().text = counter.ToString();
+    public void SetColorClientRpc(Color color) {
+        _spriteRenderer.color = color;
+    }
+
+    public void SetTeam(Team team) {
+        _team = team;
     }
 
     public void SetCounter(int counter) {
@@ -34,26 +38,29 @@ public class Squad : NetworkBehaviour
         _targetSpawner = target;
     }
 
-    private void MoveToTarget() {
-        Vector3 vector = _targetSpawner.transform.position - transform.position;
-        if (vector.magnitude < 0.05f) {
-            _targetSpawner.GetComponent<Spawner>().ReceiveSquad(gameObject);
-        } else {
-            Vector3 direction = vector.normalized;
-            transform.position = transform.position + direction * Time.deltaTime * _speed;
-        }
+    private void Awake() {
+        _textMeshPro = _counterText.GetComponent<TextMeshPro>();
+        _spriteRenderer = _sprite.GetComponent<SpriteRenderer>();
+    }
+
+    private void Update() {
+        if (!IsServer) return;
+        MoveToTarget();
     }
 
     [ClientRpc]
-    public void SetColorClientRpc(Color color) {
-        _sprite.GetComponent<SpriteRenderer>().color = color;
+    private void SetCounterTextClientRpc(int counter) {
+        _counterText.GetComponent<TextMeshPro>().text = counter.ToString();
     }
 
-    public void SetTeam(Team team) {
-        _team = team;
-    } 
-    
-    public Team GetTeam() {
-        return _team;
+    private void MoveToTarget() {
+        if (_targetSpawner == null) return;
+
+        Vector3 direction = _targetSpawner.transform.position - transform.position;
+        if (direction.magnitude < 0.05f) {
+            _targetSpawner.GetComponent<Spawner>().ReceiveSquad(gameObject);
+        } else {
+            transform.position += direction.normalized * Time.deltaTime * _speed;
+        }
     }
 }

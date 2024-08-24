@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using TMPro;
 using Unity.Netcode;
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
+using UnityEngine.SceneManagement;
 
 public class Server : NetworkBehaviour
 {
@@ -34,34 +34,49 @@ public class Server : NetworkBehaviour
     }
 
     private void Update() {
+        UpdateCountdowDisplay();
+        CheckForWinner();
+    }
+    private void UpdateCountdowDisplay() {
         _countdown.GetComponent<TextMeshPro>().text = _countdownTime.Value.ToString();
-        //if (GetWinner() != null) {
-        //    GameObject winner = GetWinner();
-        //    Debug.Log("Winner found");
-        //    ShowWinnerClientRpc(winner.GetComponent<Player>().GetTeam());
-        //}
     }
 
-    private void GenerateMap()
-    {
+    private void CheckForWinner() {
+        GameObject winner = GetWinner();
+        if (winner != null) {
+            Debug.Log("Winner found");
+            ShowWinnerClientRpc(winner.GetComponent<Player>().Team);
+        }
+    }
 
+    private void GenerateMap() {
+        SpawnPlayerSpawners();
+        SpawnNeutralSpawners();
+    }
 
-        //Спавнер первого игрока
-        SpawnSpawner(new Vector3(-7.5f, -3.5f, 0f), Team.TeamOne, 30);
-        //Спавнер второго игрока
-        SpawnSpawner(new Vector3(7.5f, 3.5f, 0f), Team.TeamTwo, 30);
+    private void SpawnPlayerSpawners() {
+        SpawnSpawner(new Vector3(-7.5f, -3.5f, 0f), Team.TeamOne, 30); // Player 1
+        SpawnSpawner(new Vector3(7.5f, 3.5f, 0f), Team.TeamTwo, 30); // Player 2
+    }
 
-        SpawnSpawner(new Vector3(0f, 0f, 0f));
-        SpawnSpawner(new Vector3(-4.5f, -3.5f, 0f));
-        SpawnSpawner(new Vector3(4.5f, 3.5f, 0f));
-        SpawnSpawner(new Vector3(-6f, 0f, 0f));
-        SpawnSpawner(new Vector3(6f, 0f, 0f));
-        SpawnSpawner(new Vector3(-3f, 0f, 0f));
-        SpawnSpawner(new Vector3(3f, 0f, 0f));
-        SpawnSpawner(new Vector3(-7.5f, 3.5f, 0f));
-        SpawnSpawner(new Vector3(7.5f, -3.5f, 0f));
-        SpawnSpawner(new Vector3(-4.5f, 3.5f, 0f));
-        SpawnSpawner(new Vector3(4.5f, -3.5f, 0f));
+    private void SpawnNeutralSpawners() {
+        Vector3[] neutralPosition = {
+            new Vector3(0f, 0f, 0f),
+            new Vector3(-4.5f, -3.5f, 0f),
+            new Vector3(4.5f, 3.5f, 0f),
+            new Vector3(-6f, 0f, 0f),
+            new Vector3(6f, 0f, 0f),
+            new Vector3(-3f, 0f, 0f),
+            new Vector3(3f, 0f, 0f),
+            new Vector3(-7.5f, 3.5f, 0f),
+            new Vector3(7.5f, -3.5f, 0f),
+            new Vector3(-4.5f, 3.5f, 0f),
+            new Vector3(4.5f, -3.5f, 0f)
+        };
+
+        foreach (var position in neutralPosition) {
+            SpawnSpawner(position);
+        }
     }
 
     private void SpawnSpawner(Vector3 position, Team team = Team.Neutral, int counter = 10)
@@ -69,10 +84,12 @@ public class Server : NetworkBehaviour
         GameObject spawnedGameObject = Instantiate(_spawner, position, Quaternion.identity);
         spawnedGameObject.GetComponent<NetworkObject>().Spawn();
         _spawners.Add(spawnedGameObject);
-        spawnedGameObject.GetComponent<Spawner>().SetServerObject(gameObject);
-        spawnedGameObject.GetComponent<Spawner>().SetTeam(team);
-        spawnedGameObject.GetComponent<Spawner>().UpdateColorClientRpc(team);
-        spawnedGameObject.GetComponent<Spawner>().SetCounter(counter);
+
+        var spawnerComponent = spawnedGameObject.GetComponent<Spawner>();
+        spawnerComponent.SetServerObject(gameObject);
+        spawnerComponent.SetTeam(team);
+        spawnerComponent.UpdateColorClientRpc(team);
+        spawnerComponent.SetCounter(counter);
     }
 
     private IEnumerator Countdown(int timeInSeconds) {
@@ -115,8 +132,8 @@ public class Server : NetworkBehaviour
         GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
         _players.Add(players[0]);
         _players.Add(players[1]);
-        players[0].GetComponent<Player>().SetTeam(Team.TeamOne);
-        players[1].GetComponent<Player>().SetTeam(Team.TeamTwo);
+        players[0].GetComponent<Player>().Team = Team.TeamOne;
+        players[1].GetComponent<Player>().Team = Team.TeamTwo;
     }
 
     private GameObject GetWinner() {
@@ -130,16 +147,22 @@ public class Server : NetworkBehaviour
 
     private bool IsPlayerWon(GameObject player) {
 
+        return IsPlayerDominatingSpawners(player) && IsPlayerDominatingSquads(player);
+    }
+
+    private bool IsPlayerDominatingSpawners(GameObject player) {
         foreach (GameObject spawner in _spawners) {
-            if (spawner.GetComponent<Spawner>().GetTeam() != player.GetComponent<Player>().GetTeam() &&
+            if (spawner.GetComponent<Spawner>().GetTeam() != player.GetComponent<Player>().Team &&
                 spawner.GetComponent<Spawner>().GetTeam() != Team.Neutral) return false;
         }
+        return true;
+    }
 
+    private bool IsPlayerDominatingSquads(GameObject player) {
         foreach (GameObject squad in _squads) {
-            if (squad.GetComponent<Squad>().GetTeam() != player.GetComponent<Player>().GetTeam() &&
+            if (squad.GetComponent<Squad>().GetTeam() != player.GetComponent<Player>().Team &&
                 squad.GetComponent<Squad>().GetTeam() != Team.Neutral) return false;
         }
-
         return true;
     }
 
@@ -152,11 +175,12 @@ public class Server : NetworkBehaviour
     }
 
     private void ResetGame() {
-
+        string currentSceneName = SceneManager.GetActiveScene().name;
+        SceneManager.LoadScene(currentSceneName);
     }
 
     [ClientRpc]
     private void ShowWinnerClientRpc(Team team) {
-
+        ResetGame();
     }
 }

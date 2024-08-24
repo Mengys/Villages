@@ -209,7 +209,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 746464504}
-        m_TargetAssemblyTypeName: TestLobby, Assembly-CSharp
+        m_TargetAssemblyTypeName: LobbyManager, Assembly-CSharp
         m_MethodName: CreateOrJoinLobby
         m_Mode: 1
         m_Arguments:

@@ -1,16 +1,36 @@
-using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
-using Unity.Netcode.Transports;
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
 
 public class Player : NetworkBehaviour
 {
     private GameObject _spawnerUnderMouse;
-    private List<GameObject> _focusedSpawners = new List<GameObject>();
+    private List<GameObject> _selectedSpawners = new List<GameObject>();
 
     private NetworkVariable<Team> _team = new NetworkVariable<Team>(Team.Neutral);
+
+    public Team Team {
+        get => _team.Value;
+        set => _team.Value = value; 
+    }
+
+    public void SelectSpawner(GameObject gameObject) {
+        _spawnerUnderMouse = gameObject;
+    }
+
+    public void UnselectSpawner() {
+        if (Input.GetMouseButton(0)) {
+            if (_spawnerUnderMouse.GetComponent<Spawner>().GetTeam() == _team.Value) {
+                AddToSelectedSpawners();
+            }
+        }
+        _spawnerUnderMouse = null;
+    }
+
+    private void AddToSelectedSpawners() {
+        _selectedSpawners.Add(_spawnerUnderMouse);
+        _spawnerUnderMouse.GetComponent<Spawner>().EnableLineRenderer();
+    }
 
     private void Start()
     {
@@ -19,41 +39,18 @@ public class Player : NetworkBehaviour
 
     private void Update() {
         if (!IsOwner) return;
-
         if (Input.GetMouseButtonUp(0)) {
-            if (_spawnerUnderMouse != null) {
-                foreach (GameObject spawner in _focusedSpawners) {
-                    SendSquadServerRpc(spawner.GetComponent<NetworkObject>(), _spawnerUnderMouse.GetComponent<NetworkObject>());
-                }
-            }
-
-            foreach (GameObject spawner in _focusedSpawners) {
-                spawner.GetComponent<Spawner>().DisableLineRenderer();
-            }
-            _focusedSpawners.Clear();
+            ProcessSelectedSpawners();
         }
     }
 
-    public void FocusSpawner(GameObject gameObject) {
-        _spawnerUnderMouse = gameObject;
-    }
-
-    public void UnfocusSpawner() {
-        if (Input.GetMouseButton(0)) {
-            if (_spawnerUnderMouse.GetComponent<Spawner>().GetTeam() == _team.Value) {
-                _focusedSpawners.Add(_spawnerUnderMouse);
-                _spawnerUnderMouse.GetComponent<Spawner>().EnableLineRenderer();
+    private void ProcessSelectedSpawners() {
+        if (_spawnerUnderMouse != null) {
+            foreach (GameObject spawner in _selectedSpawners) {
+                SendSquadServerRpc(spawner.GetComponent<NetworkObject>(), _spawnerUnderMouse.GetComponent<NetworkObject>());
             }
         }
-        _spawnerUnderMouse = null;
-    }
-
-    public void SetTeam(Team team) {
-        _team.Value = team;
-    }
-    
-    public Team GetTeam() {
-        return _team.Value;
+        ClearSelectedSpawners();
     }
 
     [ServerRpc]
@@ -61,5 +58,12 @@ public class Player : NetworkBehaviour
         if (startSpawner.TryGet(out NetworkObject spawnerObject)) {
             spawnerObject.gameObject.GetComponent<Spawner>().SendSquadServerRpc(targetSpawner);
         }
+    }
+
+    private void ClearSelectedSpawners() {
+        foreach (GameObject spawner in _selectedSpawners) {
+            spawner.GetComponent<Spawner>().DisableLineRenderer();
+        }
+        _selectedSpawners.Clear();
     }
 }
