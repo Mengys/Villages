@@ -7,10 +7,13 @@ using Unity.Services.Lobbies.Models;
 using Unity.Services.Relay;
 using Unity.Services.Relay.Models;
 using System.Threading.Tasks;
-using ParrelSync;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using System.Collections.Generic;
+
+#if UNITY_EDITOR
+using ParrelSync;
+#endif
 
 public class LobbyManager : MonoBehaviour {
     

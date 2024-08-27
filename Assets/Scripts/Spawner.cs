@@ -2,7 +2,6 @@ using System;
 using TMPro;
 using Unity.Netcode;
 using UnityEngine;
-using static UnityEditor.Experimental.AssetDatabaseExperimental.AssetDatabaseCounters;
 
 public class Spawner : NetworkBehaviour
 {
